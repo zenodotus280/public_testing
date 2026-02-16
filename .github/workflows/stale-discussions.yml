@@ -1,0 +1,33 @@
+---
+name: Close Stale Discussions
+
+'on':
+  schedule:
+    # Run daily at 00:00 UTC
+    - cron: '0 * * * *'
+  workflow_dispatch: # Allow manual trigger
+
+permissions:
+  discussions: write
+  contents: read
+
+jobs:
+  close-stale-discussions:
+    name: Close stale discussions
+    env:
+      ACTIONS_STEP_DEBUG: true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run StaleSweeper
+        uses: thenick775/stalesweeper@eeb7723f2e609a0380ff8ca7813580944dd193a6
+        #uses: steffen-karlsson/stalesweeper@v1.1.1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          days-before-close: '0'
+          message: >-
+            This discussion has been automatically closed due to inactivity
+            (no activity for 180 days). Feel free to open a new discussion if
+            you'd like to continue the conversation.
+          close-unanswered: 'true'
+          close-reason: OUTDATED
+          dry-run: 'false'
