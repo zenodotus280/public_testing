@@ -3,31 +3,59 @@ name: Close Stale Discussions
 
 'on':
   schedule:
-    # Run daily at 00:00 UTC
-    - cron: '0 * * * *'
-  workflow_dispatch: # Allow manual trigger
+    - cron: '0 0 * * SUN' # Run weekly on Sunday to reduce API usage
+  workflow_dispatch:
+      inputs:
+        days-before-close:
+          description: 'days-before-close: number of days of inactivity before closing a discussion'
+          required: false
+          default: '0'
+          type: string
+        dry-run:
+          description: 'dry-run: when checked, no discussions will be closed'
+          default: true
+          type: boolean
 
-permissions:
-  discussions: write
-  contents: read
+#permissions:
+#  discussions: write
+#  contents: read
 
 jobs:
   close-stale-discussions:
-    name: Close stale discussions
-    env:
-      ACTIONS_STEP_DEBUG: true
     runs-on: ubuntu-latest
     steps:
-      - name: Run StaleSweeper
-        uses: thenick775/stalesweeper@eeb7723f2e609a0380ff8ca7813580944dd193a6
-        #uses: steffen-karlsson/stalesweeper@v1.1.1
+      - name: stalesweeper
+        uses: zenoprax/stalesweeper@init-fork
+        env:
+          DAYS_BEFORE_CLOSE: ${{ github.event_name == 'schedule' && '180' || github.event.inputs.days-before-close }}
+          DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || github.event.inputs.dry-run }}
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          days-before-close: '0'
+          categories: ''
+          close-reason: 'OUTDATED'
+          close-unanswered: 'false'
+          days-before-close: '${{ env.DAYS_BEFORE_CLOSE}}'
+          dry-run: ${{ env.DRY_RUN }}
+          exempt-labels: 'help wanted'
           message: >-
-            This discussion has been automatically closed due to inactivity
-            (no activity for 180 days). Feel free to open a new discussion if
-            you'd like to continue the conversation.
+            This discussion was automatically closed because it has been inactive for ${{ env.DAYS_BEFORE_CLOSE}} days.
+            If the topic is still relevant, please feel free to reopen the discussion and add some more context or detail.
+
+  close-stale-answers:
+    runs-on: ubuntu-latest
+    steps:
+      - name: stalesweeper
+        uses: zenoprax/stalesweeper@init-fork
+        env:
+          DAYS_BEFORE_CLOSE: ${{ github.event_name == 'schedule' && '90' || github.event.inputs.days-before-close }}
+          DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || github.event.inputs.dry-run }}
+        with:
+          categories: 'Q&A'
+          close-reason: 'RESOLVED'
           close-unanswered: 'true'
-          close-reason: OUTDATED
-          dry-run: 'false'
+          days-before-close: '${{ env.DAYS_BEFORE_CLOSE}}'
+          dry-run: ${{ env.DRY_RUN }}
+          exempt-labels: 'help wanted'
+          message: >-
+            This discussion was automatically closed because it was answered.
+            If the topic is still relevant, please feel free to reopen the discussion and add some more context or detail.
+          #repo-token: ${{ secrets.GH_BOT_TOKEN }}
